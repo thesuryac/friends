@@ -18,6 +18,7 @@ const userSchema = mongoose.Schema(
       },
     ],
     mutualFriends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   {
     timestamps: true,
