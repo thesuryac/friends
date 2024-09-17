@@ -8,5 +8,6 @@ const generateToken = (res, userId) => {
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
   });
+  return token;
 };
 export default generateToken;
