@@ -1,9 +1,11 @@
 import { errorHandler } from "../utils/error.js";
 import User from "../models/userModel.js";
 import generateToken from "../utils/generateToken.js";
+import bcrypt from "bcryptjs";
 
 const registerUser = async (req, res, next) => {
   const { username, password } = req.body;
+
   if (!username || !password || username === "" || password === "") {
     next(errorHandler(400, "all fields are required"));
   }
@@ -13,7 +15,9 @@ const registerUser = async (req, res, next) => {
   }
 
   const salt = await bcrypt.genSalt(10);
+
   const hashPassword = await bcrypt.hash(password, salt);
+
   const user = new User({
     username,
     password: hashPassword,
@@ -26,27 +30,23 @@ const registerUser = async (req, res, next) => {
   }
 };
 
-const loginUser = async (req, res) => {
+const loginUser = async (req, res, next) => {
   const { username, password } = req.body;
   try {
-    const user = await User.findOne({ username });
+    var user = await User.findOne({ username });
     if (user && (await bcrypt.compare(password, user.password))) {
-      generateToken(res, user._id);
-      res.json({
-        _id: user._id,
-        username: user.username,
-      });
+      var token = generateToken(res, user._id);
     } else {
       next(errorHandler(400, "Invalid user data"));
     }
     user = user.toObject();
     delete user.password;
-    res.json(user);
+    res.json({ user, token });
   } catch (error) {
     next(error);
   }
 };
-const logoutUser = (req, res) => {
+const logoutUser = (req, res, next) => {
   res.cookie("access_token", "", {
     httpOnly: true,
     expires: new Date(0),
@@ -58,12 +58,12 @@ const allUser = async (req, res) => {
 
   res.json(users);
 };
-const friendrequest = async (req, res) => {
+const friendrequest = async (req, res, next) => {
   try {
     const userId = req.params.userId;
     const friendId = req.params.friendId;
 
-    const friend = await User.find({ friendId });
+    const friend = await User.findOne({ _id: friendId });
     if (!friend) next(errorHandler(404, "user not found"));
     else {
       friend.friendRequests.push(userId);
@@ -79,17 +79,23 @@ const acceptRequest = async (req, res, next) => {
   const userId = req.params.userId;
   const friendId = req.params.friendId;
   try {
-    const user = await User.find({ userId });
-    const friend = await User.find({ friendId });
+    const user = await User.findOne({ _id: userId });
+    const friend = await User.findOne({ _id: friendId });
+    console.log("in accept request");
 
     if (friend.friends.includes(userId)) {
-      next(400, "already friends");
+      next(errorHandler(400, "already friends"));
     } else {
-      user.friends.push(friendId);
-      friend.friends.push(userId);
       if (friend.friendRequests.includes(userId)) {
-        next(400, "already requested");
-      } else user.friendRequests.filter((id) => id.toString() != friendId);
+        next(errorHandler(400, "already requested"));
+      } else {
+        user.friendRequests.filter((id) => {
+          id.toString() != friendId;
+        });
+        console.log(user.friendRequests);
+        user.friends.push(friendId);
+        friend.friends.push(userId);
+      }
     }
     const mutual = user.friends.filter((f) => friend.friends.includes(f));
     user.mutualFriends.push(...mutual);
@@ -99,7 +105,7 @@ const acceptRequest = async (req, res, next) => {
     next(error);
   }
 };
-const unfriend = async (req, res) => {
+const unfriend = async (req, res, next) => {
   const userId = req.params.userId;
   const friendId = req.params.friendId;
   try {
