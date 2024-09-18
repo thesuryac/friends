@@ -81,7 +81,6 @@ const acceptRequest = async (req, res, next) => {
   try {
     const user = await User.findOne({ _id: userId });
     const friend = await User.findOne({ _id: friendId });
-    console.log("in accept request");
 
     if (friend.friends.includes(userId)) {
       next(errorHandler(400, "already friends"));
@@ -89,15 +88,16 @@ const acceptRequest = async (req, res, next) => {
       if (friend.friendRequests.includes(userId)) {
         next(errorHandler(400, "already requested"));
       } else {
-        user.friendRequests.filter((id) => {
-          id.toString() != friendId;
-        });
-        console.log(user.friendRequests);
+        user.friendRequests = user.friendRequests.filter(
+          (id) => id.toString() != friendId.toString()
+        );
         user.friends.push(friendId);
         friend.friends.push(userId);
       }
     }
-    const mutual = user.friends.filter((f) => friend.friends.includes(f));
+    const mutual = user.friends.filter((f) =>
+      friend.friends.includes(f.toString())
+    );
     user.mutualFriends.push(...mutual);
     friend.mutualFriends.push(...mutual);
     await Promise.all([user.save(), friend.save()]);
@@ -112,8 +112,8 @@ const unfriend = async (req, res, next) => {
     const user = await User.find({ userId });
     const friend = await User.find({ friendId });
 
-    user.friends.filter((id) => id.toString() != friendId);
-    friend.friends.filter((id) => id.toString() != userId);
+    user.friends = user.friends.filter((id) => id.toString() != friendId);
+    friend.friends = friend.friends.filter((id) => id.toString() != userId);
 
     await Promise.all([user.save(), friend.save()]);
 
